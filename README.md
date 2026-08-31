@@ -217,3 +217,44 @@ Dipendenze di test: `spring-boot-starter-test`, `testcontainers:mysql`.
 - **Non è il LipariBank Multi-Service del Bootcamp Microservizi 2gg**. Quello ha 4 servizi (account, movement, customer, notification) che parlano fra loro via REST + gRPC + WebSocket. Questo è single-service, più semplice. Per il bootcamp Claude Code basta.
 - **Non è production-grade**. Pattern intenzionalmente "junior" per dare ai subagent qualcosa da trovare. Se vai a colloquio mostrando *questo* codice come *tuo*, ti chiedono perché ci sono i 3 anti-pattern. Riusalo come *codice target di review*, non come portfolio.
 - **Lingua del codice**: identificatori inglesi (Account, Movement, transfer, balance) — standard di mercato Italia 2026. Commenti in inglese per coerenza con docs Spring.
+
+---
+
+## OpenCode Assets
+
+### G1 bootcamp
+Nel G1 del bootcamp ho:
+1. Configurato `opencode` sulla mia macchina.
+---
+2. Creato ed eseguito l'agente `.opencode/agents/code-reviewer-banking-domain.md`. Ho preso spunto dall'agente d'esempio nel bootcamp ma ho modificato il frontmatter per renderlo compatibile con OpenCode. Ho aggiunto la frase
+
+```
+...oppure quando viene richiesta una code review dall'utente su un determinato file...
+```
+
+per riuscire a testare in modo più puntuale la delega all'agente da parte di OpenCode. 
+
+Ho aggiunto l'istruzione
+
+```
+Al termine crea un file markdown nominato `opencode_output/CRBD_YYYYMMDDHHmmSS.md` contenente l'output della code review.
+```
+
+per creare in automatico il file Markdown contenente l'output della code review senza dover fare copia-incolla da terminale.
+
+> _Esempio per invocare l'agente_
+>
+> esegui la code review del file MovementService.java
+
+---
+3. Creata ed eseguita la skill `.opencode/skills/compliance-aml-check` tramite vibe coding usando il Prompt 2 del Project Work 
+> _Esempio per invocare la skill_
+>
+> Verifica se MovementService rispetta AML
+
+---
+4. Creato l'agente `.opencode/agents/security-reviewer.md` tramite vibe coding usando il Prompt 3 e sostituendo i riferimenti a Claude Code con OpenCode
+> _Esempio per invocare l'agente_
+>
+> esegui un controllo di sicurezza sulla codebase
+
