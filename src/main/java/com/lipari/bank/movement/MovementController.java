@@ -16,7 +16,7 @@ public class MovementController {
     private final MovementService movementService;
     private final MovementRepository movementRepo;
 
-    @PostMapping("/transfer")
+    @PostMapping("/transfers")
     public ResponseEntity<TransferResponse> transfer(@Valid @RequestBody TransferRequest req) {
         return ResponseEntity.ok(movementService.transfer(req));
     }

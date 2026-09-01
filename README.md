@@ -258,3 +258,17 @@ per creare in automatico il file Markdown contenente l'output della code review 
 >
 > esegui un controllo di sicurezza sulla codebase
 
+### G2 bootcamp
+Nel G2 del bootcamp ho:
+1. Creato i nuovi agenti `performance-reviewer` e `rest-contract-reviewer`
+
+---
+2. Creato lo script `code-review-suite.py`. Viene utilizzata la libreria `opencode_agent_sdk` in sostituzione di `claude-agent-sdk`. Aggiungerò in seguito un paragrafo di approfondimento specifico.
+
+---
+3. Modificata la riga 19 del file `MovementController.java` cambiando `/transfer` in `/transfers`. Eseguito lo script `code-review-suite.py` che ha generato il report consultabile all'interno della cartella `opencode_output`.
+
+---
+
+## opencode_agent_sdk
+TODO
