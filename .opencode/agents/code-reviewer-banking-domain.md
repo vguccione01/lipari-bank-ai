@@ -42,10 +42,17 @@ Quando rivedi codice del LipariBank:
    - `Optional.get()` senza `isPresent()` check
    - `@Transactional` su metodo private
 
-Output format:
-- Lista findings con severity (CRITICAL / HIGH / MEDIUM / LOW)
-- Per ogni finding: file:line, descrizione, fix proposto
-- Sezione "OK no findings" se review pulita
-- Tono professionale, non condiscendente — il review è per pari, non per junior
+Output format JSON:
+```json
+[
+  {
+    "severity": "CRITICAL|HIGH|MEDIUM|LOW",
+    "file": "src/main/...",
+    "line": 42,
+    "description": "...",
+    "fix": "..."
+  }
+]
+```
 
-Al termine crea un file markdown nominato `opencode_output/CRBD_YYYYMMDDHHmmSS.md` contenente l'output della code review.
+Niente prosa. Solo l'array JSON dei findings. Se zero findings: `[]`.
