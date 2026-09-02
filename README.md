@@ -271,4 +271,89 @@ Nel G2 del bootcamp ho:
 ---
 
 ## opencode_agent_sdk
-TODO
+
+### Perché è stato usato nel progetto
+
+Il file `code-review-suite.py` usa `opencode_agent_sdk` al posto di
+`claude_agent_sdk`. La sostituzione è stata possibile perché le due librerie
+espongono un modello di programmazione molto simile: un client asincrono,
+opzioni dell'agente, messaggi tipizzati (`AssistantMessage`, `ResultMessage`,
+`TextBlock`) e gestione degli strumenti autorizzati.
+
+La compatibilità riguarda soprattutto la superficie dell'API, non il motore di
+esecuzione. `opencode_agent_sdk` delega il lavoro a OpenCode, un runtime
+headless open source che può collegarsi a provider diversi; `claude_agent_sdk`
+è invece l'SDK di Anthropic per Claude Code e usa il relativo CLI. Per questo
+la sostituzione richiede comunque di predisporre un server o il CLI OpenCode e
+di configurare il provider/modello corretto.
+
+### Confronto
+
+| Aspetto | `claude_agent_sdk` | `opencode_agent_sdk` |
+|---|---|---|
+| Runtime | Claude Code CLI | OpenCode (`opencode serve`) |
+| Provider e modelli | Ecosistema Claude/Anthropic | Multi-provider tramite OpenCode (Anthropic, OpenAI, xAI, Google, modelli locali, ecc.) |
+| Installazione | `pip install claude-agent-sdk`; il CLI Claude Code è incluso nel pacchetto | `pip install opencode-agent-sdk` e installazione/avvio separato di OpenCode |
+| Modalità di connessione | Principalmente processo CLI gestito dall'SDK | HTTP verso `opencode serve` oppure subprocess locale via stdio/JSON-RPC |
+| API client | `ClaudeSDKClient` | `SDKClient` |
+| Configurazione | `ClaudeAgentOptions` | `AgentOptions` |
+| Query semplice | Funzione `query()` pronta per chiamate one-shot | Il flusso documentato usa `SDKClient`, `connect()`, `query()`, `receive_response()` e `disconnect()` |
+| Messaggi, hook e tool MCP | Disponibili | API intenzionalmente compatibile; cambiano soprattutto nomi delle classi client/opzioni |
+| Licenza/infrastruttura | Pacchetto MIT, con termini Anthropic per l'uso dello SDK | Progetto SDK MIT e infrastruttura OpenCode open source |
+
+In pratica, la mappatura principale è:
+
+```python
+# claude_agent_sdk
+from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+
+# opencode_agent_sdk
+from opencode_agent_sdk import SDKClient, AgentOptions
+```
+
+I tipi dei messaggi e le chiamate principali restano analoghi. Non sono però
+intercambiabili automaticamente il modello indicato, l'endpoint del server,
+le credenziali del provider e il modo in cui viene installato il runtime.
+
+### Impatto su `code-review-suite.py`
+
+Lo script sfrutta le differenze di configurazione di OpenCode in questo modo:
+
+```python
+client = SDKClient(options=AgentOptions(
+    cwd=os.getcwd(),
+    allowed_tools=["Read", "Grep", "Glob"],
+    max_turns=15,
+    model="big-pickle",
+    server_url="http://127.0.0.1:4096",
+))
+```
+
+- `SDKClient` sostituisce `ClaudeSDKClient` e `AgentOptions` sostituisce
+  `ClaudeAgentOptions`.
+- `server_url` abilita la modalità HTTP: prima di eseguire lo script deve
+  essere disponibile un'istanza OpenCode sull'endpoint configurato. La porta
+  `4096` è quella prevista da questo progetto; va modificata se il server è
+  avviato su un'altra porta.
+- `model="big-pickle"` è il modello utilizzato. Si possono utilizzare tutti i modello supportati da OpenCode.
+- `allowed_tools` limita gli strumenti che gli agent possono usare. In questo
+  caso sono consentite solo lettura e ricerca, coerentemente con una review
+  che non deve modificare i file.
+- Ogni subagent crea e chiude il proprio `SDKClient`; `asyncio.gather()` avvia
+  così quattro sessioni in parallelo.
+- `receive_response()` produce messaggi tipizzati. Lo script raccoglie i
+  `TextBlock`, estrae l'array JSON dei finding e usa `ResultMessage.usage` per
+  stimare token e costo.
+
+### Avvio operativo
+
+Installare il pacchetto e avviare OpenCode secondo la documentazione del
+progetto SDK, quindi verificare che l'URL configurato nello script risponda:
+
+```bash
+pip install opencode-agent-sdk
+python code-review-suite.py
+```
+
+La documentazione di riferimento è il [README di
+`opencode-agent-sdk-python`](https://github.com/dingkwang/opencode-agent-sdk-python).
