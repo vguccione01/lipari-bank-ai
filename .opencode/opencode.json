@@ -31,7 +31,11 @@
     "finbank-mcp": {
       "type": "local",
       "command": ["python", "./finbank-mcp/server.py"],
-      "enabled": true
+      "enabled": true,
+      "environment": {
+        "LIPARI_BANK_USERNAME": "{env:LIPARI_BANK_USERNAME}",
+        "LIPARI_BANK_PASSWORD": "{env:LIPARI_BANK_PASSWORD}"
+      }
     }
   }
 }

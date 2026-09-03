@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/001-base-schema.yaml
+  - include:
+      file: db/changelog/006-service-account.yaml
+  - include:
+      file: db/changelog/007-demo-movements.yaml

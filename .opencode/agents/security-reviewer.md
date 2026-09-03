@@ -2,6 +2,7 @@
 name: security-reviewer
 description: OWASP Top 10 + Spring Security review di un cambiamento di codice. Da attivare quando l'utente parla di security, sicurezza, auth, JWT, CORS, CSRF, SQL injection, XSS, password storage, session management, secret management.
 mode: subagent
+temperature: 0.0
 tools: 
   read: true
   grep: true

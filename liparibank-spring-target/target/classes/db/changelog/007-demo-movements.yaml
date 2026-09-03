@@ -1,0 +1,45 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-seed-demo-movements
+      author: lipari-bootcamp
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO movement
+                (account_id, type, amount, counterparty_account_id, description, executed_at)
+              SELECT a.id, 'DEPOSIT', 1250.00, NULL, 'stipendio gennaio', '2025-01-10 09:00:00'
+              FROM account a
+              WHERE a.iban = 'IT60X0542811101000000123456';
+
+              INSERT INTO movement
+                (account_id, type, amount, counterparty_account_id, description, executed_at)
+              SELECT a.id, 'TRANSFER_OUT', 250.00,
+                     (SELECT recipient.id FROM account recipient
+                      WHERE recipient.iban = 'IT60X0542811101000000234567'),
+                     'trasferimento a Bob', '2025-01-15 14:30:00'
+              FROM account a
+              WHERE a.iban = 'IT60X0542811101000000123456';
+
+              INSERT INTO movement
+                (account_id, type, amount, counterparty_account_id, description, executed_at)
+              SELECT a.id, 'TRANSFER_IN', 250.00,
+                     (SELECT sender.id FROM account sender
+                      WHERE sender.iban = 'IT60X0542811101000000123456'),
+                     'trasferimento da Alice', '2025-01-15 14:30:00'
+              FROM account a
+              WHERE a.iban = 'IT60X0542811101000000234567';
+
+              INSERT INTO movement
+                (account_id, type, amount, counterparty_account_id, description, executed_at)
+              SELECT a.id, 'DEPOSIT', 550.00, NULL, 'accredito stipendio', '2025-01-20 09:15:00'
+              FROM account a
+              WHERE a.iban = 'IT60X0542811101000000234567';
+
+              INSERT INTO movement
+                (account_id, type, amount, counterparty_account_id, description, executed_at)
+              SELECT a.id, 'WITHDRAW', 300.00, NULL, 'prelievo contanti', '2025-01-22 18:00:00'
+              FROM account a
+              WHERE a.iban = 'IT60X0542811101000000234567';
+      rollback:
+        - sql:
+            sql: "DELETE FROM movement WHERE description LIKE 'Demo seed:%';"
