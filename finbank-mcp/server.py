@@ -1,5 +1,7 @@
 """MCP server for LipariBank account and compliance operations."""
 
+import asyncio
+import os
 from pathlib import Path
 
 import httpx
@@ -8,6 +10,10 @@ from fastmcp import FastMCP
 
 mcp = FastMCP("LipariBank")
 _RESOURCES_DIR = Path(__file__).resolve().parent / "resources"
+_BACKEND_BASE_URL = "http://localhost:8080"
+_LOGIN_URL = f"{_BACKEND_BASE_URL}/api/auth/login"
+_backend_token: str | None = None
+_token_lock = asyncio.Lock()
 
 
 def _validate_account_id(account_id: int) -> None:
@@ -23,6 +29,84 @@ def _read_policy(filename: str) -> str:
         raise RuntimeError(f"Unable to read policy resource: {policy_path}") from exc
 
 
+async def _get_backend_token(force_refresh: bool = False) -> str:
+    """Log in to the backend and return a cached JWT."""
+    global _backend_token
+
+    async with _token_lock:
+        if _backend_token is not None and not force_refresh:
+            return _backend_token
+
+        username = os.getenv("LIPARI_BANK_USERNAME")
+        password = os.getenv("LIPARI_BANK_PASSWORD")
+        if not username or not password:
+            raise RuntimeError(
+                "LIPARI_BANK_USERNAME and LIPARI_BANK_PASSWORD must be configured"
+            )
+
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            try:
+                response = await client.post(
+                    _LOGIN_URL,
+                    json={"username": username, "password": password},
+                )
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                status_code = exc.response.status_code
+                raise RuntimeError(
+                    f"Backend authentication failed with HTTP {status_code}"
+                ) from exc
+
+        payload = response.json()
+        token = payload.get("token")
+        if not isinstance(token, str) or not token:
+            raise RuntimeError("Backend authentication response does not contain a token")
+
+        _backend_token = token
+        return token
+
+
+async def _authenticated_get(
+    url: str,
+    params: dict[str, int] | None = None,
+) -> httpx.Response:
+    """Perform an authenticated backend GET, refreshing once after HTTP 401."""
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        token = await _get_backend_token()
+        response = await client.get(
+            url,
+            params=params,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        if response.status_code == 401:
+            await _invalidate_backend_token(token)
+            token = await _get_backend_token(force_refresh=True)
+            response = await client.get(
+                url,
+                params=params,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise RuntimeError(
+                f"Backend request failed with HTTP {exc.response.status_code}: {url}"
+            ) from exc
+
+        return response
+
+
+async def _invalidate_backend_token(token: str) -> None:
+    """Clear the cached token only if it is still the rejected token."""
+    global _backend_token
+
+    async with _token_lock:
+        if _backend_token == token:
+            _backend_token = None
+
+
 @mcp.tool
 async def get_account_balance(account_id: int) -> dict:
     """Retrieve an account and its current balance.
@@ -35,21 +119,13 @@ async def get_account_balance(account_id: int) -> dict:
 
     Returns:
         The account details returned by the LipariBank account service.
+        Always format the data as follow:
+        account_id | account_balance
     """
     _validate_account_id(account_id)
-    url = f"http://localhost:8080/api/accounts/{account_id}"
-
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        try:
-            response = await client.get(url)
-            response.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            raise RuntimeError(
-                f"Account service returned HTTP {status_code} for account {account_id}"
-            ) from exc
-
-        return response.json()
+    url = f"{_BACKEND_BASE_URL}/api/accounts/{account_id}"
+    response = await _authenticated_get(url)
+    return response.json()
 
 
 @mcp.tool
@@ -70,20 +146,10 @@ async def list_recent_movements(account_id: int, limit: int = 10) -> list[dict]:
     if limit <= 0:
         raise ValueError("limit must be a positive integer")
 
-    url = "http://localhost:8080/api/movements"
+    url = f"{_BACKEND_BASE_URL}/api/movements"
     params = {"accountId": account_id, "limit": limit}
-
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        try:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            raise RuntimeError(
-                f"Movement service returned HTTP {status_code} for account {account_id}"
-            ) from exc
-
-        return response.json()
+    response = await _authenticated_get(url, params=params)
+    return response.json()
 
 
 @mcp.tool
@@ -144,11 +210,14 @@ def banking_regulation_policy() -> str:
 
 @mcp.prompt
 def draft_compliance_report(audit_period_days: int = 30) -> str:
-    """Create a Markdown template for a compliance report draft."""
-    if audit_period_days <= 0:
-        raise ValueError("audit_period_days must be a positive integer")
+    """Template per bozza di compliance report.
 
-    return f"""# LipariBank Compliance Report
+    Args:
+        audit_period_days: Periodo di audit in giorni (default 30)
+    """
+    return f"""
+
+# LipariBank Compliance Report
 
 ## Audit period
 
