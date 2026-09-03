@@ -74,5 +74,5 @@ databaseChangeLog:
                 (2, 'IT60X0542811101000000234567', 500.00);
               -- password BCrypt hash di "alice123" e "bob123"
               INSERT INTO app_user (username, password_hash, customer_id) VALUES
-                ('alice', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 1),
-                ('bob',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 2);
+                ('alice', '$2a$10$pNF1Y/8xUp/OrDT.vhvj.Oo4Rpc4wdC4fMPkcKRlelst9noNS9tHK', 1),
+                ('bob',   '$2a$10$dQA6Dc7KoSD7bQaPxV831ed8nmOkp3ZhvhnJarRfikHOOtavuhnfm', 2);
