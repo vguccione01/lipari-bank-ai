@@ -2,6 +2,7 @@
 name: performance-reviewer
 description: Review di performance per backend Spring Boot — N+1 problem, missing index, blocking I/O su critical path, connection pool tuning, cache invalidation. Da invocare su PR che toccano repository, service, query, batch processing o su richiesta esplicita dell'utente
 mode: subagent
+temperature: 0.0
 tools: 
     read: true
     grep: true

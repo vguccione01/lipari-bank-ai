@@ -1,7 +1,8 @@
 ---
 name: code-reviewer-banking-domain
-description: Review domain-aware del codice Spring Boot per LipariBank — focus su transazioni atomiche, idempotency, gestione password BCrypt, JWT secret handling, pattern banking (importi BigDecimal, no double), audit trail. Da invocare prima del merge di ogni PR che tocca domain/movement, domain/account, domain/user oppure quando viene richiesta una code review dall'utente su un determinato file.
+description: Review domain-aware del codice Spring Boot per LipariBank — focus su transazioni atomiche, idempotency, gestione password BCrypt, JWT secret handling, pattern banking (importi BigDecimal, no double), audit trail. Invoca prima del merge di ogni PR che tocca domain/movement, domain/account, domain/user. Invoca anche quando viene richiesta una code review delle ultime modifiche effettuate.
 mode: subagent
+temperature: 0.0
 tools: 
   read: true
   grep: true
@@ -41,6 +42,15 @@ Quando rivedi codice del LipariBank:
    - try-catch con `throw new RuntimeException(e)` che perde lo stack
    - `Optional.get()` senza `isPresent()` check
    - `@Transactional` su metodo private
+
+
+## Server MCP
+Hai accesso ai tool MCP del finbank-mcp server quando connesso. Usali quando:
+- Se le modifiche riguardano le logiche di calcolo del saldo, allora chiama `simulate_transfer_what_if` per effettuare le verifiche
+- Se le modifiche riguardano la lista movimenti, allora chiama `list_recent_movements` per verificare la paginazione
+
+
+## Output
 
 Output format JSON:
 ```json

@@ -2,6 +2,7 @@
 name: rest-contract-reviewer
 description: Review del contratto REST API — DTO request/response separati, status code corretti, OpenAPI schema, idempotency, versioning. Da invocare su PR che toccano controller, DTO, ErrorResponse, OpenAPI annotations
 mode: subagent
+temperature: 0.0
 tools: 
     read: true
     grep: true
