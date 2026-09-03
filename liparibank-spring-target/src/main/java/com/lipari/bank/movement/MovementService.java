@@ -1,6 +1,8 @@
 package com.lipari.bank.movement;
 
 import java.time.Instant;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.lipari.bank.account.Account;
@@ -43,8 +45,7 @@ public class MovementService {
 
         from.setBalance(from.getBalance().subtract(req.getAmount()));
         to.setBalance(to.getBalance().add(req.getAmount()));
-        accountRepo.save(from);
-        accountRepo.save(to);
+        accountRepo.saveAll(List.of(from, to));
 
         Movement out = new Movement();
         out.setAccountId(from.getId());

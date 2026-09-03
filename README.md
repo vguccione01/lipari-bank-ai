@@ -268,6 +268,24 @@ Nel G2 del bootcamp ho:
 ---
 3. Modificata la riga 19 del file `MovementController.java` cambiando `/transfer` in `/transfers`. Eseguito lo script `code-review-suite.py` che ha generato il report consultabile all'interno della cartella `opencode_output`.
 
+### G3 bootcamp
+Nel G3 del bootcamp ho:
+1. Creato il server MCP `finbank-mcp/server.py`. Il server consiste in:
+- 3 tools:
+  - `get_account_balance` - per la lettura del saldo di un dato account
+  - `list_recent_movements` - per la lettura degli ultimi movimenti di un account
+  - `simulate_transfer_what_if` - per simulare il trasferimento di denaro tra due account
+- 2 resources:
+  - `aml_policy` - legge il documento `finbank-mcp/resources/aml-policy.md`
+  - `banking_regulation_policy` - legge il documento `finbank-mcp/resources/banking-regulation-v2.md`
+- 1 prompt:
+  - `draft_compliance_report` - per la generazione di una bozza di compliance report
+
+Durante i test con il server MCP è emerso che per l'invocazione degli endpoint utilizzati dai 3 tools fosse necessario autenticarsi verso il server Java, in quanto tutti gli endpoint risultano protetti. Tale argomento non è attualmente coperto dal bootcamp. Dopo un confronto con il docente si è concordato che il pattern corretto ai fini del bootcamp fosse la creazione di un *service account* lato DB. Fatto ciò, ho modificato la configurazione `opencode.json` affinchè questa carichi le variabili d'ambiente `LIPARI_BANK_USERNAME` e `LIPARI_BANK_PASSWORD`. Ho aggiornato il server MCP affinchè questo si autentichi verso il server Java alla ricezione di un errore 401.
+
+2. Aggiornato l'agente `code-reviewer-banking-domain.md` affinchè utilizzi il tool `simulate_transfer_what_if` del server MCP quando le modifiche riguardano logiche di calcolo del saldo. 
+
+
 ---
 
 ## opencode_agent_sdk
