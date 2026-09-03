@@ -29,6 +29,7 @@ SDK_MAX_TURNS = 15
 
 TOKEN_BUDGET = 200_000
 TIME_BUDGET_SECONDS = 600
+SUBAGENT_TIMEOUT_SECONDS = 180
 COST_BUDGET_USD = 5.0
 
 # Costo Sonnet 4.6: ~$3/M input + $15/M output. Stima conservativa: $9/M average
@@ -50,7 +51,6 @@ async def run_subagent(name: str, description: str, pr_diff: str, cid: str) -> d
     if agent_prompt_path.exists():
         system_context = agent_prompt_path.read_text(encoding="utf-8") + "\n\n"
 
-    print(f"[{cid}] Current working directory: {os.getcwd()}")
     client = SDKClient(options=AgentOptions(
         cwd=os.getcwd(),
         allowed_tools=SDK_TOOLS,
@@ -107,6 +107,26 @@ Output ONLY a JSON array of findings, no prose. Schema:
     }
 
 
+async def run_subagent_with_timeout(
+    name: str, description: str, pr_diff: str, cid: str
+) -> dict:
+    """Esegue un subagent e lo cancella se supera il timeout individuale."""
+    try:
+        return await asyncio.wait_for(
+            run_subagent(name, description, pr_diff, cid),
+            timeout=SUBAGENT_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        print(f"[{cid}] Timeout subagent: {name}")
+        return {
+            "name": name,
+            "description": description,
+            "findings": [],
+            "tokens": 0,
+            "error": f"Timeout dopo {SUBAGENT_TIMEOUT_SECONDS}s",
+        }
+
+
 def extract_json_array(content: str) -> list:
     """Trova il primo array JSON ben formato nella response."""
     start = content.find("[")
@@ -153,10 +173,44 @@ async def main(pr_diff: str):
     print(f"Subagents: {len(SUBAGENTS)}")
 
     tasks = [
-        run_subagent(name, desc, pr_diff, cid)
+        asyncio.create_task(
+            run_subagent_with_timeout(name, desc, pr_diff, cid),
+            name=name,
+        )
         for name, desc in SUBAGENTS
     ]
-    results = await asyncio.gather(*tasks)
+
+    done, pending = await asyncio.wait(tasks, timeout=TIME_BUDGET_SECONDS)
+
+    if pending:
+        print(
+            f"⚠️ TIME BUDGET EXCEEDED: cancellazione di "
+            f"{len(pending)} subagent dopo {TIME_BUDGET_SECONDS}s"
+        )
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    results = []
+    for task in tasks:
+        if task in done and not task.cancelled():
+            try:
+                results.append(task.result())
+                continue
+            except Exception as e:
+                error = str(e)
+        else:
+            error = f"Cancellato dopo {TIME_BUDGET_SECONDS}s di timeout globale"
+
+        name = task.get_name()
+        description = next(desc for agent_name, desc in SUBAGENTS if agent_name == name)
+        results.append({
+            "name": name,
+            "description": description,
+            "findings": [],
+            "tokens": 0,
+            "error": error,
+        })
 
     elapsed = time.time() - start
     total_tokens = sum(r["tokens"] for r in results)
@@ -166,9 +220,6 @@ async def main(pr_diff: str):
         print(f"⚠️ TOKEN BUDGET EXCEEDED: {total_tokens} > {TOKEN_BUDGET}")
     if cost > COST_BUDGET_USD:
         print(f"⚠️ COST BUDGET EXCEEDED: ${cost:.2f} > ${COST_BUDGET_USD}")
-    if elapsed > TIME_BUDGET_SECONDS:
-        print(f"⚠️ TIME BUDGET EXCEEDED: {elapsed:.0f}s > {TIME_BUDGET_SECONDS}s")
-
     report = synthesize_report(results, cid, total_tokens, elapsed, cost)
 
     output_path = Path(f"review-report-{cid}.md")
@@ -194,7 +245,5 @@ if __name__ == "__main__":
         print("⚠️ Nessuna diff trovata (git diff HEAD~1 è vuoto o ha fallito).")
     else:
         print("diff trovate")
-
-    print(pr_diff)
     
     asyncio.run(main(pr_diff))
